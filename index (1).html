@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Italy 2026 — Trip Companion</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--cream:#F5F0E8;--ink:#1A1610;--terra:#C4622D;--gold:#D4A843;--sage:#5C7A5F;--dust:#8C7B6B;--light:#EDE8DE;--card:#FFFDF8;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;}
+.header{background:var(--ink);color:var(--cream);padding:14px 20px 10px;position:relative;z-index:200;}
+.header-top{display:flex;align-items:flex-start;justify-content:space-between;}
+.trip-name{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;line-height:1.1;}
+.trip-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--dust);letter-spacing:.1em;text-transform:uppercase;margin-top:2px;}
+.clock{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:var(--gold);line-height:1;}
+.clock-lbl{font-family:'DM Mono',monospace;font-size:9px;color:var(--dust);letter-spacing:.1em;text-transform:uppercase;text-align:right;margin-top:2px;}
+.next-up{background:var(--ink);border-top:1px solid rgba(255,255,255,.08);padding:10px 20px;display:flex;align-items:center;gap:12px;z-index:200;position:relative;}
+.nu-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);flex-shrink:0;white-space:nowrap;}
+.nu-content{flex:1;min-width:0;}
+.nu-title{font-size:12px;font-weight:500;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nu-detail{font-family:'DM Mono',monospace;font-size:10px;color:var(--dust);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.countdown{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;flex-shrink:0;white-space:nowrap;}
+.countdown.urgent{color:#FF6B47;}.countdown.soon{color:var(--gold);}.countdown.ok{color:#8BC4A0;}
+.status-card{background:var(--terra);color:white;padding:12px 20px;border-bottom:3px solid var(--gold);position:relative;z-index:200;}
+.status-loc{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;font-style:italic;line-height:1;}
+.status-date{font-family:'DM Mono',monospace;font-size:10px;opacity:.85;letter-spacing:.08em;text-transform:uppercase;margin-top:3px;}
+.tabs{display:flex;background:var(--light);border-bottom:1px solid rgba(0,0,0,.1);position:relative;z-index:200;}
+.tab{flex:1;padding:10px;text-align:center;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;color:var(--dust);border-bottom:2px solid transparent;transition:all .15s;}
+.tab.active{color:var(--terra);border-bottom-color:var(--terra);background:rgba(196,98,45,.06);}
+.tab-content{display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.tab-content.active{display:block;}
+.section-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dust);padding:16px 16px 8px;border-bottom:1px solid rgba(0,0,0,.08);}
+.day-card{background:var(--card);border-radius:12px;border:1px solid rgba(0,0,0,.07);margin:8px 12px;overflow:hidden;cursor:pointer;}
+.day-card.today{border:2px solid var(--terra);}
+.day-card.past{opacity:.55;}
+.day-hd{display:flex;align-items:center;gap:10px;padding:10px 12px;pointer-events:none;}
+.db{min-width:42px;text-align:center;background:var(--light);border-radius:8px;padding:4px 5px;flex-shrink:0;}
+.db.today-db{background:var(--terra);}
+.db-mo{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--dust);display:block;}
+.today-db .db-mo,.today-db .db-dw{color:rgba(255,255,255,.7);}
+.db-d{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--ink);display:block;line-height:1.1;}
+.today-db .db-d{color:white;}
+.db-dw{font-family:'DM Mono',monospace;font-size:9px;color:var(--dust);display:block;}
+.day-meta{flex:1;min-width:0;}
+.day-sub{font-family:'DM Mono',monospace;font-size:10px;color:var(--dust);text-transform:uppercase;letter-spacing:.06em;margin-bottom:1px;}
+.day-title{font-size:13px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.loc-chip{font-family:'DM Mono',monospace;font-size:10px;background:var(--light);color:var(--dust);border-radius:20px;padding:2px 8px;flex-shrink:0;white-space:nowrap;}
+.today .loc-chip{background:var(--terra);color:white;}
+.chev{font-size:10px;color:var(--dust);transition:transform .2s;flex-shrink:0;}
+.day-details{display:none;padding:0 12px 12px;border-top:1px solid rgba(0,0,0,.06);}
+.dep-banner{display:flex;align-items:flex-start;gap:8px;background:#FDF0EB;border:1px solid #E8C4B0;border-radius:8px;padding:8px 10px;margin:10px 0 6px;}
+.dep-time{font-size:12px;font-weight:600;color:var(--terra);}
+.dep-reason{font-size:11px;color:var(--dust);margin-top:1px;}
+.item-row{display:flex;gap:7px;margin-bottom:6px;align-items:flex-start;padding-top:6px;border-top:1px solid rgba(0,0,0,.04);}
+.item-row:first-of-type{border-top:none;}
+.item-ico{font-size:12px;min-width:16px;flex-shrink:0;}
+.item-txt{font-size:11px;color:var(--dust);line-height:1.5;}
+.item-txt strong{color:var(--ink);font-weight:500;}
+.ref{font-family:'DM Mono',monospace;font-size:10px;background:var(--light);color:var(--dust);border-radius:4px;padding:1px 5px;display:inline-block;}
+.pill{display:inline-block;font-size:9px;border-radius:20px;padding:1px 6px;margin-left:3px;font-family:'DM Mono',monospace;}
+.pill-ok{background:#E8F4EC;color:var(--sage);}.pill-tbd{background:#FDECEA;color:#B03A2E;}.pill-flex{background:#FEF9E7;color:#9A7D0A;}
+.timeline{border-left:2px solid var(--light);margin:6px 0 4px 7px;padding-left:12px;}
+.tl-row{margin-bottom:6px;}
+.tl-time{font-family:'DM Mono',monospace;font-size:10px;font-weight:500;color:var(--terra);}
+.tl-desc{font-size:11px;color:var(--dust);line-height:1.4;margin-top:1px;}
+/* MAP */
+#map{width:100%;height:100%;z-index:1;}
+.map-status-bar{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(26,22,16,.85);color:white;border-radius:20px;padding:7px 14px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.06em;z-index:400;white-space:nowrap;backdrop-filter:blur(4px);}
+.map-status-bar.ok{border:1px solid rgba(139,196,160,.4);color:#8BC4A0;}
+.map-status-bar.searching{border:1px solid rgba(212,168,67,.4);color:var(--gold);}
+.map-status-bar.error{border:1px solid rgba(255,107,71,.4);color:#FF6B47;}
+.locate-btn{position:absolute;top:12px;right:12px;z-index:400;background:white;border:none;border-radius:8px;width:40px;height:40px;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;}
+.map-next-panel{position:absolute;top:12px;left:12px;right:60px;z-index:400;background:rgba(26,22,16,.88);color:white;border-radius:10px;padding:10px 12px;backdrop-filter:blur(4px);}
+.mnp-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
+.mnp-title{font-size:12px;font-weight:500;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mnp-dist{font-family:'DM Mono',monospace;font-size:11px;color:#8BC4A0;margin-top:2px;}
+/* NUMBERED PINS */
+.map-pin{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:white;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer;}
+.map-pin.home{background:#2C3E50;}
+.map-pin.past{background:#8C7B6B;}
+.map-pin.today{background:var(--terra);}
+.map-pin.future{background:#5C7A5F;}
+.you-dot{background:var(--gold);width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 3px rgba(212,168,67,.35);}
+/* PRE/POST */
+.pre-trip{padding:32px 20px;text-align:center;}
+.pre-title{font-family:'Playfair Display',serif;font-size:34px;font-weight:700;font-style:italic;margin-bottom:6px;}
+.pre-sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--dust);letter-spacing:.08em;}
+.days-num{font-family:'DM Mono',monospace;font-size:60px;font-weight:500;color:var(--terra);line-height:1;margin:20px 0 6px;}
+.days-lbl{font-size:13px;color:var(--dust);letter-spacing:.05em;text-transform:uppercase;font-family:'DM Mono',monospace;}
+.footer{position:fixed;bottom:0;left:0;right:0;background:var(--ink);padding:7px 20px;font-family:'DM Mono',monospace;font-size:9px;text-align:center;color:var(--dust);letter-spacing:.08em;z-index:300;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div><div class="trip-name">Italy 2026</div><div class="trip-sub">Dan · Marlena · Joanne</div></div>
+    <div><div class="clock" id="clock">--:--</div><div class="clock-lbl">Rome Time</div></div>
+  </div>
+</div>
+<div id="next-up-area"></div>
+<div id="status-area"></div>
+<div class="tabs">
+  <div class="tab active" id="tab-schedule" onclick="switchTab('schedule')">📅 Schedule</div>
+  <div class="tab" id="tab-map" onclick="switchTab('map')">🗺 Map</div>
+</div>
+<div id="tab-content-schedule" class="tab-content active"></div>
+<div id="tab-content-map" class="tab-content" style="position:relative;">
+  <div id="map"></div>
+  <div class="map-next-panel" id="map-next-panel" style="display:none;">
+    <div class="mnp-label">Next stop</div>
+    <div class="mnp-title" id="mnp-title">—</div>
+    <div class="mnp-dist" id="mnp-dist"></div>
+  </div>
+  <button class="locate-btn" onclick="centerOnMe()">📍</button>
+  <div class="map-status-bar searching" id="map-status">Waiting for GPS…</div>
+</div>
+<div class="footer">Italy Trip · May 7–18 2026 · All times Italian local time (CEST)</div>
+
+<script>
+const TRIP_START=new Date('2026-05-07T15:00:00-04:00');
+const TRIP_END=new Date('2026-05-18T13:16:00-04:00');
+
+// Home location — shown on map only
+const HOME={lat:42.5787,lng:-84.4468,label:'Home — Mason, MI',num:0};
+
+const days=[
+  {date:'2026-05-07',dw:'Thu',label:'Departure Day',title:'Drive to Detroit Metro & Fly Out',loc:'Mason, MI → DTW',
+   lat:42.2124,lng:-83.3534,
+   depart:{time:'3:00 PM EST',reason:'Drive to DTW is ~1h45m — need to be at airport by 5:00 PM for 8:00 PM international departure'},
+   events:[{time:'20:00',label:'Delta 206 departs DTW',type:'flight'}],
+   items:[
+    {i:'🏠',t:'Leave home at <strong>3:00 PM EST</strong> — 2304 Coy Rd, Mason MI'},
+    {i:'🚗',t:'Drive to DTW: <strong>~1h45m</strong> — take I-96 E toward Detroit'},
+    {i:'⏰',t:'Arrive DTW by <strong>5:00 PM</strong> — 3 hours before international departure'},
+    {i:'✈',t:'<strong>Delta 206</strong> departs DTW <strong>8:00 PM</strong> <span class="pill pill-ok">confirmed</span>'},
+    {i:'📋',t:'Confirmation <span class="ref">HZPWLC</span> — Dan, Marlena, Joanne'}
+  ]},
+  {date:'2026-05-08',dw:'Fri',label:'Arrival — Rome Night 1',title:'Arrive Rome FCO',loc:'Rome',
+   lat:41.8946,lng:12.4823,depart:null,
+   events:[{time:'11:00',label:'Delta 206 arrives FCO',type:'flight'}],
+   items:[
+    {i:'✈',t:'<strong>Delta 206 arrives FCO 11:00 AM</strong>'},
+    {i:'🏠',t:'<strong>2 Colonne al Colosseo</strong> — Airbnb May 8–11 <span class="pill pill-ok">confirmed</span>'},
+    {i:'💡',t:'Check-in ~3–4 PM — store bags, grab lunch near Colosseum'}
+  ]},
+  {date:'2026-05-09',dw:'Sat',label:'Rome — Day 1',title:'Vatican Museums & Sistine Chapel',loc:'Rome',
+   lat:41.9029,lng:12.4534,
+   depart:{time:'1:30 PM',reason:'Vatican tour starts 2:15 PM — 30 min transit from Colosseum area'},
+   events:[{time:'14:15',label:'Vatican Museums tour',type:'tour'}],
+   items:[
+    {i:'🎟',t:'<strong>Vatican Museums, Sistine Chapel & St. Peter\'s</strong> <span class="pill pill-ok">confirmed</span>'},
+    {i:'🕑',t:'Tour: <strong>2:15 PM</strong> | Ref <span class="ref">GYGMX4L77MHG</span>'},
+    {i:'💡',t:'Morning free — Trastevere for lunch before the tour'}
+  ]},
+  {date:'2026-05-10',dw:'Sun',label:'Rome — Day 2',title:'Colosseum, Palatine Hill & Forum',loc:'Rome',
+   lat:41.8902,lng:12.4922,
+   depart:{time:'12:00 PM',reason:'Colosseum tour starts 12:30 PM — steps from Airbnb'},
+   events:[{time:'12:30',label:'Colosseum tour',type:'tour'}],
+   items:[
+    {i:'🎟',t:'<strong>Colosseum Arena, Palatine Hill & Forum</strong> <span class="pill pill-ok">confirmed</span>'},
+    {i:'🕧',t:'Tour: <strong>12:30–15:30</strong> | Ref <span class="ref">GYG2Q9NHHWX3</span>'},
+    {i:'💡',t:'Morning free — Campo de\'Fiori area'},
+    {i:'🧳',t:'Pack tonight — checking out tomorrow'}
+  ]},
+  {date:'2026-05-11',dw:'Mon',label:'Travel — Naples Night 1',title:'Rome → Naples by train',loc:'Naples',
+   lat:40.8518,lng:14.2681,
+   depart:{time:'10:30 AM',reason:'Frecciarossa 9405 departs Roma Termini 11:35 AM'},
+   events:[{time:'11:35',label:'Frecciarossa 9405 departs Termini',type:'train'},{time:'12:48',label:'Arrive Napoli Centrale',type:'arrive'}],
+   items:[
+    {i:'🧳',t:'Check out Airbnb — confirm 10:30 AM early checkout with host'},
+    {i:'🚕',t:'Taxi to Roma Termini ~10 min — book via itTaxi night before'},
+    {i:'🚆',t:'<strong>Frecciarossa 9405 — Termini 11:35 AM → Napoli Centrale 12:48 PM</strong> <span class="pill pill-ok">confirmed</span>'},
+    {i:'🏨',t:'<strong>Grand Hotel Oriente</strong> <span class="pill pill-ok">confirmed</span> | Ref <span class="ref">BetQerkk2h22GHOr</span>'},
+    {i:'🍕',t:'Dinner: Sorbillo or Di Matteo for Naples pizza'}
+  ]},
+  {date:'2026-05-12',dw:'Tue',label:'Pompeii + Travel to Nerano',title:'Pompeii → Sorrento → Nerano',loc:'Nerano',
+   lat:40.5962,lng:14.3497,
+   depart:{time:'10:30 AM',reason:'Circumvesuviana from Porta Nolana departs ~10:40 AM'},
+   events:[{time:'12:30',label:'Pompeii tour — Via Villa dei Misteri 2',type:'tour'},{time:'16:00',label:'Pick up Europcar — Corso Italia 210/P',type:'car'}],
+   items:[
+    {i:'🧳',t:'Check out Grand Hotel Oriente by 10:30 AM'},
+    {i:'🚆',t:'Walk/taxi to <strong>Napoli Porta Nolana</strong> → Circumvesuviana → Pompeii Scavi (~40 min)'},
+    {i:'🎟',t:'<strong>Pompeii Small Group Tour with Archaeologist</strong> <span class="pill pill-ok">confirmed</span>'},
+    {i:'🕧',t:'Tour: <strong>12:30–2:30 PM</strong> | Ref <span class="ref">GYG48YVXMXL4</span> | Meet: Via Villa dei Misteri 2'},
+    {i:'🚗',t:'<strong>Pick up Europcar</strong> — Corso Italia 210/P, opens 4:00 PM <span class="pill pill-ok">confirmed</span> | Ref <span class="ref">748835392</span>'},
+    {i:'🏠',t:'<strong>La Marina - Casa al Mare</strong> — Nerano Airbnb <span class="pill pill-ok">confirmed</span> | ~25 min via SS163'}
+  ]},
+  {date:'2026-05-13',dw:'Wed',label:'Nerano — Day 1',title:'Private Boat Tour — Amalfi Coast',loc:'Amalfi',
+   lat:40.6340,lng:14.6027,
+   depart:{time:'9:00 AM',reason:'Meeting in Amalfi at 10:00 AM — 45 min drive on narrow SS163'},
+   events:[{time:'10:00',label:'Boat tour departs — Amalfi',type:'tour'}],
+   items:[
+    {i:'⛵',t:'<strong>Private Boat Excursion — Amalfi Coast</strong> <span class="pill pill-ok">confirmed</span>'},
+    {i:'🕙',t:'10:00 AM – 4:00 PM | Ref <span class="ref">AMA-89984633</span>'},
+    {i:'📍',t:'Meeting: Via Lungomare dei Cavalieri, Amalfi — <strong>confirm pickup with operator</strong>'},
+    {i:'💡',t:'SS163 is narrow and slow — do not leave at 9:15 AM'}
+  ]},
+  {date:'2026-05-14',dw:'Thu',label:'Nerano — Day 2',title:'Day trip to Capri',loc:'Capri',
+   lat:40.5488,lng:14.2189,
+   depart:{time:'7:30 AM',reason:'Walk to Marina del Cantone dock for ~8:00 AM ferry'},
+   events:[{time:'08:00',label:'Ferry departs Marina del Cantone → Capri',type:'ferry'},{time:'09:30',label:'Chairlift to Monte Solaro opens',type:'activity'}],
+   timeline:[
+    {time:'~8:00 AM',desc:'Ferry from Marina del Cantone → Capri (~30 min) — buy ticket at dock'},
+    {time:'~8:30 AM',desc:'Local bus directly up to Anacapri — skip Capri town for now'},
+    {time:'9:30 AM',desc:'Chairlift to Monte Solaro — opens 9:30 AM, get there first'},
+    {time:'~10:30 AM',desc:'Walk back down on foot — 30–40 min through lemon groves'},
+    {time:'~11:15 AM',desc:'Wander Anacapri — café, local streets, far less crowded'},
+    {time:'~12:00 PM',desc:'Villa San Michele — gardens & views (~€9/person)'},
+    {time:'~1:00 PM',desc:'Bus/walk down to Capri town for lunch at the Piazzetta'},
+    {time:'~2:30 PM',desc:'Arco Naturale — 20 min forest path, almost no crowds'},
+    {time:'~3:30 PM',desc:'Punta Tragara — Faraglioni rocks views, free'},
+    {time:'~4:30 PM',desc:'Ferry back from Capri port → Marina del Cantone'}
+   ],
+   items:[
+    {i:'💡',t:'Bring cash — Anacapri vendors often don\'t take cards'},
+    {i:'💡',t:'Buy chairlift one-way up — walk back down for the best experience'}
+  ]},
+  {date:'2026-05-15',dw:'Fri',label:'Nerano — Day 3',title:'Flex day',loc:'Nerano',
+   lat:40.5962,lng:14.3497,depart:null,events:[],
+   items:[{i:'🌊',t:'<span class="pill pill-flex">flex</span> Cala di Ieranto hike, ferry to Amalfi, drive to Ravello, or beach day at Marina del Cantone'}]},
+  {date:'2026-05-16',dw:'Sat',label:'Nerano → Sorrento',title:'Flex morning → Drop car → Hotel Regina',loc:'Sorrento',
+   lat:40.6262,lng:14.3757,
+   depart:{time:'12:15 PM',reason:'Europcar closes 1:00 PM Saturdays — 25 min drive from Nerano'},
+   events:[{time:'13:00',label:'Return Europcar — Corso Italia 210/P',type:'car'}],
+   items:[
+    {i:'🌊',t:'<span class="pill pill-flex">flex</span> Last open morning in Nerano'},
+    {i:'🚗',t:'<strong>Return Europcar by 1:00 PM</strong> — Corso Italia 210/P <span class="pill pill-ok">confirmed</span>'},
+    {i:'🏨',t:'<strong>Boutique Hotel Regina</strong> — Via Marina Grande 10 <span class="pill pill-ok">confirmed</span> | Ref <span class="ref">5190877085</span>'},
+    {i:'🍝',t:'Last night on the coast — dinner in Sorrento'}
+  ]},
+  {date:'2026-05-17',dw:'Sun',label:'Travel + Rome Tour',title:'Sorrento → Rome → Catacombs',loc:'Rome',
+   lat:41.8902,lng:12.4922,
+   depart:{time:'9:10 AM',reason:'Circumvesuviana departs Sorrento Centrale 9:22 AM — 6 min walk from hotel'},
+   events:[{time:'09:22',label:'Circumvesuviana departs Sorrento Centrale',type:'train'},{time:'11:30',label:'Frecciarossa 9634 departs Napoli Centrale',type:'train'},{time:'12:39',label:'Arrive Roma Termini',type:'arrive'},{time:'15:00',label:'Catacombs of San Domitilla tour',type:'tour'}],
+   items:[
+    {i:'🧳',t:'Check out Hotel Regina by 9:00 AM — walk to Sorrento Centrale (6 min)'},
+    {i:'🚆',t:'<strong>Circumvesuviana 9:22 AM → Napoli Porta Nolana ~10:22 AM</strong>'},
+    {i:'🚆',t:'<strong>Frecciarossa 9634 — Napoli 11:30 AM → Roma Termini 12:39 PM</strong> <span class="pill pill-ok">confirmed</span> | Ref <span class="ref">1793437128</span>'},
+    {i:'🧳',t:'<strong>Store bags at Roma Termini</strong> — Deposito Bagagli ~€6/bag'},
+    {i:'🚕',t:'Taxi Termini → Catacombs (~20–25 min, ~€18) — arrive by 2:50 PM'},
+    {i:'🎟',t:'<strong>Catacombs of San Domitilla</strong> <span class="pill pill-ok">confirmed</span>'},
+    {i:'🕒',t:'Tour: <strong>3:00 PM</strong> | Ref <span class="ref">GYG48YVZ2V6X</span> | Via delle Sette Chiese 282 — garden entrance'},
+    {i:'🚕',t:'After tour: Termini → retrieve bags → Porto Di Claudio, Fiumicino (~40 min)'},
+    {i:'🏨',t:'<strong>Porto Di Claudio</strong> <span class="pill pill-ok">confirmed</span> | Ref <span class="ref">6677.293.720</span>'}
+  ]},
+  {date:'2026-05-18',dw:'Mon',label:'Departure',title:'Fly home to Detroit',loc:'FCO → DTW',
+   lat:41.8003,lng:12.2388,
+   depart:{time:'6:15 AM',reason:'Delta 207 departs FCO 9:00 AM — be at airport by 6:00–6:30 AM'},
+   events:[{time:'09:00',label:'Delta 207 departs FCO',type:'flight'}],
+   items:[
+    {i:'✈',t:'<strong>Delta 207 departs FCO 9:00 AM</strong> → DTW arrives 1:16 PM <span class="pill pill-ok">confirmed</span> | Ref <span class="ref">HZPWLC</span>'},
+    {i:'🚕',t:'Porto Di Claudio → FCO ~5–10 min taxi — confirm shuttle night before'},
+    {i:'💡',t:'Be at FCO no later than 6:30 AM — international check-in closes 90 min before'}
+  ]}
+];
+
+// ── HELPERS ──────────────────────────────────────────────────────
+function italyNow(){return new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Rome'}));}
+function todayStr(){const d=italyNow();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fmtCountdown(ms){
+  if(ms<=0)return'NOW';
+  const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000);
+  if(h>48)return Math.floor(h/24)+'d '+(h%24)+'h';
+  if(h>0)return h+'h '+String(m).padStart(2,'0')+'m';
+  if(m>0)return m+'m '+String(s).padStart(2,'0')+'s';
+  return s+'s';
+}
+function urgCls(ms){const h=ms/3600000;return h<1?'urgent':h<3?'soon':'ok';}
+function getNextEvent(){
+  const now=italyNow(),today=todayStr();
+  for(const day of days){
+    if(day.date<today)continue;
+    if(day.depart&&day.depart.time){
+      const ts=day.depart.time.replace(/ (AM|PM|EST)/g,'');
+      let[h,m]=ts.split(':').map(Number);
+      const raw=day.depart.time;
+      if(raw.includes('PM')&&h!==12)h+=12;
+      if(raw.includes('AM')&&h===12)h=0;
+      const dt=new Date(day.date+'T'+String(h).padStart(2,'0')+':'+String(m||0).padStart(2,'0')+':00');
+      if(dt>now)return{label:'Leave by '+day.depart.time,detail:day.depart.reason,ms:dt-now,day};
+    }
+    for(const ev of(day.events||[])){
+      const dt=new Date(day.date+'T'+ev.time+':00');
+      if(dt>now)return{label:ev.label,detail:day.title+' · '+day.loc,ms:dt-now,day};
+    }
+  }
+  return null;
+}
+function haversine(a,b,c,d){
+  const R=6371,dL=(c-a)*Math.PI/180,dN=(d-b)*Math.PI/180;
+  const x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dN/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function fmtDist(km){return km<1?Math.round(km*1000)+'m away':km.toFixed(1)+'km away';}
+
+// ── SCHEDULE RENDER ───────────────────────────────────────────────
+function renderDay(day,idx){
+  const today=todayStr(),isPast=day.date<today,isToday=day.date===today;
+  let cls='day-card';if(isToday)cls+=' today';if(isPast)cls+=' past';
+  const dbCls=isToday?'db today-db':'db';
+  const dateNum=parseInt(day.date.split('-')[2]);
+  const depHTML=day.depart?`<div class="dep-banner"><div><div class="dep-time">🚨 Must leave by ${day.depart.time}</div><div class="dep-reason">${day.depart.reason}</div></div></div>`:'';
+  const tlHTML=day.timeline?`<div class="timeline">${day.timeline.map(t=>`<div class="tl-row"><div class="tl-time">${t.time}</div><div class="tl-desc">${t.desc}</div></div>`).join('')}</div>`:'';
+  const itemsHTML=day.items.map(it=>`<div class="item-row"><span class="item-ico">${it.i}</span><span class="item-txt">${it.t}</span></div>`).join('');
+  return `<div class="${cls}" onclick="toggleDay(${idx})"><div class="day-hd"><div class="${dbCls}"><span class="db-mo">May</span><span class="db-d">${dateNum}</span><span class="db-dw">${day.dw}</span></div><div class="day-meta"><div class="day-sub">${day.label}</div><div class="day-title">${day.title}</div></div><span class="loc-chip">${day.loc}</span><span class="chev" id="chev-${idx}">▼</span></div><div class="day-details" id="det-${idx}">${depHTML}${tlHTML}<div style="padding-top:7px">${itemsHTML}</div></div></div>`;
+}
+function toggleDay(idx){
+  const det=document.getElementById('det-'+idx),chev=document.getElementById('chev-'+idx);
+  const open=det.style.display==='block';
+  det.style.display=open?'none':'block';
+  chev.style.transform=open?'':'rotate(180deg)';
+}
+
+// ── TAB SWITCHING ─────────────────────────────────────────────────
+let mapInitialized=false;
+function switchTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('tab-content-'+tab).classList.add('active');
+  if(tab==='map'&&!mapInitialized){initMap();mapInitialized=true;}
+  if(tab==='map'&&map)setTimeout(()=>map.invalidateSize(),100);
+}
+
+// ── MAP ───────────────────────────────────────────────────────────
+let map=null,userMarker=null,userLat=null,userLng=null;
+
+function initMap(){
+  const today=todayStr();
+  const todayDay=days.find(d=>d.date===today);
+  const center=todayDay?[todayDay.lat,todayDay.lng]:[41.9,12.5];
+  const zoom=todayDay&&todayDay.lat>40?10:5;
+  map=L.map('map',{zoomControl:true}).setView(center,zoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
+
+  // Build all map stops: home (0) + days (1–12)
+  const allStops=[
+    {...HOME, date:'2026-05-07', isHome:true},
+    ...days.map((d,i)=>({...d,num:i+1,isHome:false}))
+  ];
+
+  // Draw colored route polyline segment by segment
+  for(let i=0;i<allStops.length-1;i++){
+    const a=allStops[i],b=allStops[i+1];
+    if(!a.lat||!b.lat)continue;
+    const aPast=a.date<today,bPast=b.date<today,aToday=a.date===today;
+    let color,dashArray=null,weight=3,opacity=0.85;
+    if(aPast&&bPast){color='#27AE60';} // green — completed
+    else if(aToday||(!aPast&&a.date<=today)){color='#F39C12';weight=4;} // orange — current leg
+    else{color='#E74C3C';dashArray='8,5';opacity=0.65;} // red dashed — upcoming
+    L.polyline([[a.lat,a.lng],[b.lat,b.lng]],{color,weight,opacity,dashArray}).addTo(map);
+  }
+
+  // Draw pins on top of lines
+  allStops.forEach((stop,i)=>{
+    if(!stop.lat)return;
+    const isToday=stop.date===today,isPast=stop.date<today;
+    let pinCls='map-pin ';
+    if(stop.isHome)pinCls+='home';
+    else if(isToday)pinCls+='today';
+    else if(isPast)pinCls+='past';
+    else pinCls+='future';
+
+    const icon=L.divIcon({
+      className:'',
+      html:`<div class="${pinCls}">${stop.num}</div>`,
+      iconSize:[28,28],
+      iconAnchor:[14,14],
+      popupAnchor:[0,-16]
+    });
+
+    let popupContent;
+    if(stop.isHome){
+      popupContent=`<div style="font-family:'DM Sans',sans-serif;min-width:160px"><div style="font-size:11px;color:#8C7B6B;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em">Stop 0 · Starting Point</div><div style="font-size:13px;font-weight:500;margin:3px 0">Home — Mason, MI</div><div style="font-size:11px;color:#C4622D;margin-top:4px">🚗 Drive to DTW: ~1h 45m<br>Leave by <strong>3:00 PM EST</strong> on May 7</div></div>`;
+    } else {
+      const dateNum=parseInt(stop.date.split('-')[2]);
+      popupContent=`<div style="font-family:'DM Sans',sans-serif;min-width:160px"><div style="font-size:11px;color:#8C7B6B;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em">Stop ${stop.num} · May ${dateNum} · ${stop.dw}</div><div style="font-size:13px;font-weight:500;margin:3px 0">${stop.title}</div><div style="font-size:11px;color:#5C7A5F;font-family:'DM Mono',monospace">${stop.loc}</div>${stop.depart?`<div style="font-size:11px;color:#C4622D;margin-top:4px">🚨 Leave by ${stop.depart.time}</div>`:''}</div>`;
+    }
+    L.marker([stop.lat,stop.lng],{icon}).addTo(map).bindPopup(popupContent);
+  });
+
+  // Fit map to show full route on first load
+  const bounds=allStops.filter(s=>s.lat).map(s=>[s.lat,s.lng]);
+  if(bounds.length>1)map.fitBounds(bounds,{padding:[30,30]});
+
+  // GPS
+  document.getElementById('map-status').textContent='Getting your location…';
+  if(navigator.geolocation){
+    navigator.geolocation.watchPosition(onGPS,onGPSError,{enableHighAccuracy:true,timeout:10000,maximumAge:5000});
+    setTimeout(()=>{if(!userLat)tryIPLocation();},4000);
+  } else {tryIPLocation();}
+}
+
+function tryIPLocation(){
+  fetch('https://ipapi.co/json/')
+    .then(r=>r.json())
+    .then(data=>{
+      if(data.latitude&&data.longitude&&!userLat){
+        onGPS({coords:{latitude:data.latitude,longitude:data.longitude}},true);
+        document.getElementById('map-status').textContent='~City-level location (IP)';
+        document.getElementById('map-status').className='map-status-bar searching';
+      }
+    }).catch(()=>{
+      if(!userLat){
+        document.getElementById('map-status').textContent='Location unavailable';
+        document.getElementById('map-status').className='map-status-bar error';
+      }
+    });
+}
+
+function onGPS(pos,isIP=false){
+  userLat=pos.coords.latitude;userLng=pos.coords.longitude;
+  const youIcon=L.divIcon({className:'',html:'<div class="you-dot"></div>',iconSize:[16,16],iconAnchor:[8,8]});
+  if(!userMarker){
+    userMarker=L.marker([userLat,userLng],{icon:youIcon,zIndexOffset:1000}).addTo(map)
+      .bindPopup(isIP?'<strong>~Your approximate location</strong><br><small>City-level (IP-based)</small>':'<strong>You are here</strong>');
+    if(!isIP)map.setView([userLat,userLng],14);
+  } else if(!isIP){
+    userMarker.setLatLng([userLat,userLng]);
+  }
+  if(!isIP){
+    document.getElementById('map-status').textContent='GPS active';
+    document.getElementById('map-status').className='map-status-bar ok';
+  }
+  updateMapNext();
+}
+function onGPSError(err){
+  const msgs={1:'Location permission denied',2:'Position unavailable',3:'GPS timed out'};
+  document.getElementById('map-status').textContent=msgs[err.code]||'GPS error';
+  document.getElementById('map-status').className='map-status-bar error';
+}
+function centerOnMe(){
+  if(userLat&&map){map.setView([userLat,userLng],15);}
+  else{document.getElementById('map-status').textContent='No GPS signal yet';document.getElementById('map-status').className='map-status-bar searching';}
+}
+function updateMapNext(){
+  if(!userLat)return;
+  const next=getNextEvent();
+  const panel=document.getElementById('map-next-panel');
+  if(next&&next.day&&next.day.lat){
+    const dist=haversine(userLat,userLng,next.day.lat,next.day.lng);
+    document.getElementById('mnp-title').textContent=next.label;
+    document.getElementById('mnp-dist').textContent=fmtDist(dist);
+    panel.style.display='block';
+  } else panel.style.display='none';
+}
+
+// ── TICK ──────────────────────────────────────────────────────────
+let lastDate=null;
+function tick(){
+  const now=italyNow(),today=todayStr();
+  document.getElementById('clock').textContent=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});
+  const next=getNextEvent();
+  const area=document.getElementById('next-up-area');
+  if(next){
+    const cls=urgCls(next.ms);
+    area.innerHTML=`<div class="next-up"><div class="nu-lbl">Next up</div><div class="nu-content"><div class="nu-title">${next.label}</div><div class="nu-detail">${next.detail}</div></div><div class="countdown ${cls}">${fmtCountdown(next.ms)}</div></div>`;
+  } else area.innerHTML='';
+  if(userLat)updateMapNext();
+  if(today!==lastDate){lastDate=today;fullRender();}
+}
+
+function fullRender(){
+  const now=italyNow(),today=todayStr(),nowMs=now.getTime();
+  const sArea=document.getElementById('status-area'),mArea=document.getElementById('tab-content-schedule');
+  const curDay=days.find(d=>d.date===today);
+  if(nowMs<TRIP_START.getTime()){
+    const du=Math.ceil((TRIP_START-now)/86400000);
+    sArea.innerHTML='';
+    mArea.innerHTML=`<div class="pre-trip"><div class="pre-title">Buon Viaggio</div><div class="pre-sub">Your adventure begins in</div><div class="days-num">${du}</div><div class="days-lbl">days</div></div><div class="section-lbl">Full Itinerary</div>${days.map((d,i)=>renderDay(d,i)).join('')}<div style="height:60px"></div>`;
+    return;
+  }
+  if(nowMs>TRIP_END.getTime()){
+    sArea.innerHTML='';
+    mArea.innerHTML=`<div class="pre-trip"><div class="pre-title">Benvenuti a Casa 🏠</div><p style="color:var(--dust);font-family:'DM Mono',monospace;font-size:12px">What a trip.</p></div>`;
+    return;
+  }
+  if(curDay)sArea.innerHTML=`<div class="status-card"><div class="status-loc">${curDay.loc}</div><div class="status-date">${now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</div></div>`;
+  const past=days.filter(d=>d.date<today),fut=days.filter(d=>d.date>today),tod=days.find(d=>d.date===today);
+  let html='';
+  if(tod)html+=`<div class="section-lbl">Today</div>`+renderDay(tod,days.indexOf(tod));
+  if(fut.length){html+=`<div class="section-lbl">Coming up</div>`;fut.forEach(d=>{html+=renderDay(d,days.indexOf(d));});}
+  if(past.length){html+=`<div class="section-lbl">Past</div>`;[...past].reverse().forEach(d=>{html+=renderDay(d,days.indexOf(d));});}
+  html+='<div style="height:60px"></div>';
+  mArea.innerHTML=html;
+  if(tod){
+    const idx=days.indexOf(tod);
+    setTimeout(()=>{
+      const det=document.getElementById('det-'+idx),chev=document.getElementById('chev-'+idx);
+      if(det){det.style.display='block';chev.style.transform='rotate(180deg)';}
+    },50);
+  }
+}
+
+// ── LAYOUT ────────────────────────────────────────────────────────
+function fixLayout(){
+  const used=document.querySelector('.header').offsetHeight+
+    document.getElementById('next-up-area').offsetHeight+
+    document.getElementById('status-area').offsetHeight+
+    document.querySelector('.tabs').offsetHeight+32;
+  const h=window.innerHeight-used;
+  ['tab-content-schedule','tab-content-map'].forEach(id=>{
+    document.getElementById(id).style.height=h+'px';
+  });
+  if(map)map.invalidateSize();
+}
+
+tick();
+setInterval(tick,1000);
+window.addEventListener('resize',fixLayout);
+setTimeout(fixLayout,300);
+</script>
+</body>
+</html>
